@@ -12,7 +12,7 @@ provider "aws" {
   region = "ap-south-1"
 }
 
-# 1. Base VPC for DEV/UAT (10.20.16.0/20)
+# 1. Base VPC (DEV CIDR: 10.20.16.0/20)
 resource "aws_vpc" "dev_vpc" {
   cidr_block           = "10.20.16.0/20"
   enable_dns_support   = true
@@ -24,7 +24,7 @@ resource "aws_vpc" "dev_vpc" {
   }
 }
 
-# 2. Internet Gateway for Public Traffic
+# 2. Internet Gateway
 resource "aws_internet_gateway" "igw" {
   vpc_id = aws_vpc.dev_vpc.id
 
@@ -33,7 +33,7 @@ resource "aws_internet_gateway" "igw" {
   }
 }
 
-# 3. Public Subnets (ALB / Ingress: 10.20.17.0/24 & 10.20.18.0/24)
+# 3. ALB Public Subnets (/24)
 resource "aws_subnet" "public_az1" {
   vpc_id                  = aws_vpc.dev_vpc.id
   cidr_block              = "10.20.17.0/24"
@@ -60,7 +60,7 @@ resource "aws_subnet" "public_az2" {
   }
 }
 
-# 4. Private Subnets for EKS Worker Nodes (10.20.19.0/23 & 10.20.21.0/23)
+# 4. EKS Worker Private Subnets (/23)
 resource "aws_subnet" "private_worker_az1" {
   vpc_id            = aws_vpc.dev_vpc.id
   cidr_block        = "10.20.19.0/23"
@@ -83,28 +83,4 @@ resource "aws_subnet" "private_worker_az2" {
     "kubernetes.io/role/internal-elb"      = "1"
     "kubernetes.io/cluster/adarva-eks-dev" = "shared"
   }
-}
-
-# 5. Route Table & Route to Internet Gateway
-resource "aws_route_table" "public_rt" {
-  vpc_id = aws_vpc.dev_vpc.id
-
-  route {
-    cidr_block = "0.0.0.0/0"
-    gateway_id = aws_internet_gateway.igw.id
-  }
-
-  tags = {
-    Name = "adarva-dev-public-rt"
-  }
-}
-
-resource "aws_route_table_association" "public_az1_assoc" {
-  subnet_id      = aws_subnet.public_az1.id
-  route_table_id = aws_route_table.public_rt.id
-}
-
-resource "aws_route_table_association" "public_az2_assoc" {
-  subnet_id      = aws_subnet.public_az2.id
-  route_table_id = aws_route_table.public_rt.id
 }
